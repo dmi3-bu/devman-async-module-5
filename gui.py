@@ -46,6 +46,8 @@ async def update_tk(root_frame, interval=1 / 120):
 
 
 async def update_conversation_history(panel, messages_queue):
+    scrolled_down_at_init = False
+
     while True:
         msg = await messages_queue.get()
 
@@ -53,10 +55,16 @@ async def update_conversation_history(panel, messages_queue):
         if panel.index('end-1c') != '1.0':
             panel.insert('end', '\n')
         panel.insert('end', msg)
-        # TODO сделать промотку умной, чтобы не мешала просматривать историю сообщений
-        # ScrolledText.frame
-        # ScrolledText.vbar
-        panel.yview(tk.END)
+        abs_pos, rel_pos = panel.vbar.get()
+
+        if not scrolled_down_at_init:
+            panel.yview(tk.END)
+            if abs_pos != 0.0:
+                scrolled_down_at_init = True
+
+        if scrolled_down_at_init:
+            if rel_pos > 0.99:
+                panel.yview(tk.END)
         panel['state'] = 'disabled'
 
 
@@ -129,6 +137,8 @@ async def draw(messages_queue, sending_queue, status_updates_queue):
             tg.start_soon(update_tk, root_frame),
             tg.start_soon(update_conversation_history, conversation_panel, messages_queue),
             tg.start_soon(update_status_panel, status_labels, status_updates_queue)
-    except* tk.TclError:
+    except Exception as e:
+        print(e.exceptions)
+        print(type(e))
         # if application has been destroyed/closed
         raise TkAppClosed()
